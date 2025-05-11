@@ -10,7 +10,6 @@ const cacheDuration = 10 * 60 * 1000;
 const IMAGE_PATH = path.join(__dirname, "uploads");
 const SERVER_PORT = 8000;
 
-
 if (!fs.existsSync(IMAGE_PATH)) {
     fs.mkdirSync(IMAGE_PATH, { recursive: true });
 }
