@@ -6,22 +6,52 @@ require("dotenv").config();
 
 const API_KEY = process.env.API_KEY;
 const imageCache = [];
-const cacheDuration = 10 * 60 * 1000;
+const cacheDuration = 10 * 60 * 1000; // 10 minutes
 const IMAGE_PATH = path.join(__dirname, "uploads");
 const SERVER_PORT = 8000;
+
+const AUTO_DELETE = false;
+const AUTO_DELETE_DURATION = 8; // days
 
 if (!fs.existsSync(IMAGE_PATH)) {
     fs.mkdirSync(IMAGE_PATH, { recursive: true });
 }
 
-setInterval(() => {
+setInterval(async () => {
     const now = Date.now();
     for (let i = imageCache.length - 1; i >= 0; i--) {
         if (now - imageCache[i].timestamp > cacheDuration) {
             imageCache.splice(i, 1);
         }
     }
+
+    await deleteOldImages();
 }, cacheDuration);
+
+async function deleteOldImages() {
+    if (!AUTO_DELETE) return;
+
+    const deleteDate = new Date();
+    deleteDate.setDate(deleteDate.getDate() - AUTO_DELETE_DURATION);
+
+    try {
+        const files = fs.readdirSync(IMAGE_PATH);
+        for (const file of files) {
+            const filePath = path.join(IMAGE_PATH, file);
+            try {
+                const stats = fs.statSync(filePath);
+                if (stats.mtime < deleteDate) {
+                    fs.unlinkSync(filePath);
+                    console.log(`Deleted old image: ${file}`);
+                }
+            } catch (err) {
+                console.error(`Error processing file ${file}:`, err);
+            }
+        }
+    } catch (err) {
+        console.error("Error reading directory:", err);
+    }
+}
 
 async function handleImageRequest(res, url) {
     const [, encodedUrl] = url.split("?url=");
