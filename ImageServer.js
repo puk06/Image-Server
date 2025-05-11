@@ -1,11 +1,19 @@
 const axios = require("axios");
 const sharp = require("sharp");
 const fs = require("fs");
+const path = require("path");
 require("dotenv").config();
 
 const API_KEY = process.env.API_KEY;
-const imageCache = []  // 10minutes
-const cacheDuration = 10 * 60 * 1000; // 10 minutes
+const imageCache = [];
+const cacheDuration = 10 * 60 * 1000;
+const IMAGE_PATH = path.join(__dirname, "uploads");
+const SERVER_PORT = 8000;
+
+
+if (!fs.existsSync(IMAGE_PATH)) {
+    fs.mkdirSync(IMAGE_PATH, { recursive: true });
+}
 
 setInterval(() => {
     const now = Date.now();
@@ -70,11 +78,11 @@ async function handleUploadImage(req, res) {
         const resized = await resizeImage(data);
 
         let fileName = GenerateRandomString(10);
-        while (fs.existsSync(`./uploads/${fileName}.jpg`)) {
+        while (fs.existsSync(path.join(IMAGE_PATH, `${fileName}.jpg`))) {
             fileName = GenerateRandomString(10);
         }
 
-        const filePath = `./uploads/${fileName}.jpg`;
+        const filePath = path.join(IMAGE_PATH, `${fileName}.jpg`);
 
         fs.writeFile(filePath, resized, err => {
             if (err) {
@@ -96,7 +104,7 @@ function handleGetImage(req, res) {
     const imageId = req.url.split("?id=")[1];
     if (!imageId) return sendError(res, 400, "Missing image ID");
 
-    const filePath = `./uploads/${imageId}.jpg`;
+    const filePath = path.join(IMAGE_PATH, `${imageId}.jpg`)
     if (!fs.existsSync(filePath)) {
         return sendError(res, 404, "Image not found");
     }
@@ -173,7 +181,7 @@ require("http").createServer(async (req, res) => {
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Internal server error" }));
     }
-}).listen(8000, async () => {
+}).listen(SERVER_PORT, async () => {
     Logger("Server is running");
 });
 
