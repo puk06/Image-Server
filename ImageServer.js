@@ -42,10 +42,10 @@ async function deleteOldImages() {
                 const stats = fs.statSync(filePath);
                 if (stats.mtime < deleteDate) {
                     fs.unlinkSync(filePath);
-                    console.log(`Deleted old image: ${file}`);
+                    Logger(`Deleted old image: ${file}`);
                 }
             } catch (err) {
-                console.error(`Error processing file ${file}:`, err);
+                Logger(`Error checking file ${file}: ${err.message}`);
             }
         }
     } catch (err) {
@@ -76,15 +76,9 @@ async function handleImageRequest(res, url) {
         imageCache.push({ url: imageUrl, buffer: resized, timestamp: Date.now() });
         sendImage(res, resized, "MISS");
     } catch (err) {
-        console.error("Error fetching image:", err);
+        Logger(`Error fetching image from ${imageUrl}: ${err.message}`);
         sendError(res, 400, "Invalid image");
     }
-}
-
-function resizeImage(imageData) {
-    return sharp(imageData)
-        .resize(2048, 2048, { fit: "inside", withoutEnlargement: true })
-        .toBuffer();
 }
 
 function UploadImage(req) {
@@ -94,11 +88,6 @@ function UploadImage(req) {
         req.on("end", () => resolve(Buffer.concat(chunks)));
         req.on("error", reject);
     });
-}
-
-function GenerateRandomString(length) {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    return Array.from({ length }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join("");
 }
 
 async function handleUploadImage(req, res) {
@@ -151,18 +140,6 @@ function handleGetImage(req, res) {
     });
 }
 
-function sendImage(res, buffer, cacheStatus = "") {
-    const headers = { "Content-Type": "image/jpeg" };
-    if (cacheStatus) headers["X-Cache"] = cacheStatus;
-    res.writeHead(200, headers);
-    res.end(buffer);
-}
-
-function sendError(res, statusCode, message) {
-    res.writeHead(statusCode, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ error: message }));
-}
-
 require("http").createServer(async (req, res) => {
     try {
         const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
@@ -181,16 +158,15 @@ require("http").createServer(async (req, res) => {
             case "/upload/": {
                 const apiKey = req.headers.authorization;
                 if (!apiKey || apiKey !== API_KEY) {
-                    res.writeHead(403, { "Content-Type": "application/json" });
-                    res.end(JSON.stringify({ error: "Forbidden" }));
+                    Logger(`Unauthorized access attempt from ${ip}`);
+                    sendError(res, 403, "Forbidden");
                     return;
                 }
 
                 if (req.method === "POST") {
                     handleUploadImage(req, res);
                 } else {
-                    res.writeHead(405, { "Content-Type": "application/json" });
-                    res.end(JSON.stringify({ error: "Method not allowed" }));
+                    sendError(res, 405, "Method not allowed");
                 }
                 break;
             }
@@ -201,18 +177,39 @@ require("http").createServer(async (req, res) => {
                 break;
             
             default:
-                res.writeHead(404, { "Content-Type": "application/json" });
-                res.end(JSON.stringify({ error: "Endpoint not found" }));
+                sendError(res, 404, "Endpoint not found");
                 break;
         }
     } catch (err) {
-        console.error("Error handling request:", err);
-        res.writeHead(500, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Internal server error" }));
+        Logger(`Error handling request: ${err.message}`);
+        sendError(res, 500, "Internal server error");
     }
 }).listen(SERVER_PORT, async () => {
     Logger("Server is running");
 });
+
+function resizeImage(imageData) {
+    return sharp(imageData)
+        .resize(2048, 2048, { fit: "inside", withoutEnlargement: true })
+        .toBuffer();
+}
+
+function sendImage(res, buffer, cacheStatus = "") {
+    const headers = { "Content-Type": "image/jpeg" };
+    if (cacheStatus) headers["X-Cache"] = cacheStatus;
+    res.writeHead(200, headers);
+    res.end(buffer);
+}
+
+function sendError(res, statusCode, message) {
+    res.writeHead(statusCode, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: message }));
+}
+
+function GenerateRandomString(length) {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    return Array.from({ length }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join("");
+}
 
 function Logger(message) {
     console.log(`[${new Date().toLocaleString()}] ${message}`);
