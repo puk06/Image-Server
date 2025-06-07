@@ -10,6 +10,6 @@
 1. `node ImageServer.js`で起動するだけです。
 
 # ライセンス
-ライブラリのライセンスはTHIRD_PARTY_LICENSESを御覧ください
+ライブラリのライセンスは[THIRD_PARTY_LICENSES](https://github.com/puk06/Image-Server/blob/main/THIRD_PARTY_LICENSES)を御覧ください
 
-サーバーコードのライセンスはLISENCEを御覧ください
+サーバーコードのライセンスは[LISENCE](https://github.com/puk06/Image-Server/blob/main/LICENSE)を御覧ください
