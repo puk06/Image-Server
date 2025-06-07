@@ -1,5 +1,5 @@
 class LogUtils {
-    constructor(ip = "unknown") {
+    constructor(ip) {
         this.ip = ip;
     }
 

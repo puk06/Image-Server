@@ -160,7 +160,7 @@ function handleGetImage(req, res, logger) {
 
 require("http").createServer(async (req, res) => {
     try {
-        const ip = req.socket.remoteAddress;
+        const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown";
         const Logger = new LogUtils(ip);
 
         if (!ip) {
