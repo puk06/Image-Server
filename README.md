@@ -12,4 +12,4 @@
 # ライセンス
 ライブラリのライセンスは[THIRD_PARTY_LICENSES](https://github.com/puk06/Image-Server/blob/main/THIRD_PARTY_LICENSES)を御覧ください
 
-サーバーコードのライセンスは[LISENCE](https://github.com/puk06/Image-Server/blob/main/LICENSE)を御覧ください
+サーバーコードのライセンスは[LICENSE](https://github.com/puk06/Image-Server/blob/main/LICENSE)を御覧ください
