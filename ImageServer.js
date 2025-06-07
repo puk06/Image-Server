@@ -4,6 +4,9 @@ const fs = require("fs");
 const path = require("path");
 require("dotenv").config();
 
+const RequestUtils = require("./Utils/RequestUtils");
+const LogUtils = require("./Utils/LogUtils");
+
 const API_KEY = process.env.API_KEY;
 const imageCache = [];
 const cacheDuration = 10 * 60 * 1000; // 10 minutes
@@ -42,28 +45,31 @@ async function deleteOldImages() {
                 const stats = fs.statSync(filePath);
                 if (stats.mtime < deleteDate) {
                     fs.unlinkSync(filePath);
-                    Logger(`Deleted old image: ${file}`);
+                    LogUtils.serverMessage(`Deleted old image: ${file}`);
                 }
             } catch (err) {
-                Logger(`Error checking file ${file}: ${err.message}`);
+                LogUtils.serverMessage(`Error checking file ${file}: ${err.message}`);
             }
         }
     } catch (err) {
-        console.error("Error reading directory:", err);
+        LogUtils.serverMessage("Error reading directory:", err);
     }
 }
 
-async function handleImageRequest(res, url) {
+async function handleImageRequest(res, url, logger) {
     const [, encodedUrl] = url.split("?url=");
+
     if (!encodedUrl) {
-        return sendError(res, 400, "Missing parameters");
+        logger.log("Missing URL parameter");
+        return RequestUtils.sendError(res, 400, "Missing parameters");
     }
 
     const imageUrl = decodeURIComponent(encodedUrl);
 
     const cachedImage = imageCache.find(item => item.url === imageUrl);
     if (cachedImage) {
-        return sendImage(res, cachedImage.buffer, "HIT");
+        logger.log(`Serving cached image from ${imageUrl}`);
+        return RequestUtils.sendImage(res, cachedImage.buffer);
     }
 
     try {
@@ -74,10 +80,12 @@ async function handleImageRequest(res, url) {
         if (!resized) throw new Error("Resize failed");
 
         imageCache.push({ url: imageUrl, buffer: resized, timestamp: Date.now() });
-        sendImage(res, resized, "MISS");
+
+        logger.log(`Fetched and resized image from ${imageUrl}`);
+        RequestUtils.sendImage(res, resized);
     } catch (err) {
-        Logger(`Error fetching image from ${imageUrl}: ${err.message}`);
-        sendError(res, 400, "Invalid image");
+        logger.log(`Error fetching image from ${imageUrl}: ${err.message}`);
+        RequestUtils.sendError(res, 400, "Invalid image");
     }
 }
 
@@ -90,7 +98,7 @@ function UploadImage(req) {
     });
 }
 
-async function handleUploadImage(req, res) {
+async function handleUploadImage(req, res, logger) {
     try {
         const data = await UploadImage(req);
         const resized = await resizeImage(data);
@@ -104,37 +112,47 @@ async function handleUploadImage(req, res) {
 
         fs.writeFile(filePath, resized, err => {
             if (err) {
-                Logger(`Error saving image: ${err.message}`);
-                return sendError(res, 500, "Failed to save image");
+                logger.log(`Error saving image: ${err.message}`);
+                return RequestUtils.sendError(res, 500, "Failed to save image");
             }
 
-            Logger(`Uploaded image: ${fileName}`);
-            res.writeHead(200, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ message: "Success", fileName }));
+            logger.log(`Image uploaded and saved as ${fileName}.jpg`);
+            RequestUtils.sendResponse(res, 200, { message: "Success", fileName });
         });
     } catch (err) {
-        sendError(res, 500, "Failed to process image");
-        Logger(`Error during upload: ${err.message}`);
+        logger.log(`Error during upload: ${err.message}`);
+        RequestUtils.sendError(res, 500, "Failed to process image");
     }
 }
 
-function handleGetImage(req, res) {
+function handleGetImage(req, res, logger) {
     const imageId = req.url.split("?id=")[1];
-    if (!imageId) return sendError(res, 400, "Missing image ID");
+
+    if (!imageId) {
+        logger.log("Missing image ID");
+        return RequestUtils.sendError(res, 400, "Missing image ID");
+    }
 
     const filePath = path.join(IMAGE_PATH, `${imageId}.jpg`)
     if (!fs.existsSync(filePath)) {
-        return sendError(res, 404, "Image not found");
+        logger.log(`Image not found: ${imageId}`);
+        return RequestUtils.sendError(res, 404, "Image not found");
     }
 
     const cached = imageCache.find(item => item.url === imageId);
-    if (cached) return sendImage(res, cached.buffer, "HIT");
+    if (cached) {
+        logger.log(`Serving cached image: ${imageId}`);
+        return RequestUtils.sendImage(res, cached.buffer);
+    }
 
     fs.readFile(filePath, (err, data) => {
         if (err) {
-            sendError(res, 404, "Image not found");
+            logger.log(`Error reading image file: ${err.message}`);
+            RequestUtils.sendError(res, 404, "Image not found");
         } else {
-            sendImage(res, data);
+            logger.log(`Serving image from disk: ${imageId}`);
+            RequestUtils.sendImage(res, data);
+
             imageCache.push({ url: imageId, buffer: data, timestamp: Date.now() });
         }
     });
@@ -142,8 +160,14 @@ function handleGetImage(req, res) {
 
 require("http").createServer(async (req, res) => {
     try {
-        const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-        Logger(`${ip} ${req.method} ${req.url}`);
+        const ip = req.socket.remoteAddress;
+        const Logger = new LogUtils(ip);
+
+        if (!ip) {
+            Logger.log("IP address not found");
+            RequestUtils.sendError(res, 400, "IP address not found");
+            return;
+        }
 
         const urlParts = req.url.split("?");
         const endpoint = urlParts[0];
@@ -151,41 +175,43 @@ require("http").createServer(async (req, res) => {
         switch (endpoint) {
             case "/resize":
             case "/resize/":
-                await handleImageRequest(res, req.url);
+                await handleImageRequest(res, req.url, Logger);
                 break;
 
             case "/upload":
             case "/upload/": {
                 const apiKey = req.headers.authorization;
                 if (!apiKey || apiKey !== API_KEY) {
-                    Logger(`Unauthorized access attempt from ${ip}`);
-                    sendError(res, 403, "Forbidden");
+                    Logger.log(`Unauthorized access attempt`);
+                    RequestUtils.sendError(res, 403, "Forbidden");
                     return;
                 }
 
                 if (req.method === "POST") {
-                    handleUploadImage(req, res);
+                    handleUploadImage(req, res, Logger);
                 } else {
-                    sendError(res, 405, "Method not allowed");
+                    Logger.log(`Method not allowed: ${req.method}`);
+                    RequestUtils.sendError(res, 405, "Method not allowed");
                 }
                 break;
             }
 
             case "/get":
             case "/get/":
-                handleGetImage(req, res);
+                handleGetImage(req, res, Logger);
                 break;
             
             default:
-                sendError(res, 404, "Endpoint not found");
+                Logger.log(`Endpoint not found: ${req.url}`);
+                RequestUtils.sendError(res, 404, "Endpoint not found");
                 break;
         }
     } catch (err) {
-        Logger(`Error handling request: ${err.message}`);
-        sendError(res, 500, "Internal server error");
+        logger.log(`Error handling request: ${err.message}`);
+        RequestUtils.sendError(res, 500, "Internal server error");
     }
 }).listen(SERVER_PORT, async () => {
-    Logger("Server is running");
+    LogUtils.serverMessage(`Server is running on port ${SERVER_PORT}`);
 });
 
 function resizeImage(imageData) {
@@ -194,23 +220,7 @@ function resizeImage(imageData) {
         .toBuffer();
 }
 
-function sendImage(res, buffer, cacheStatus = "") {
-    const headers = { "Content-Type": "image/jpeg" };
-    if (cacheStatus) headers["X-Cache"] = cacheStatus;
-    res.writeHead(200, headers);
-    res.end(buffer);
-}
-
-function sendError(res, statusCode, message) {
-    res.writeHead(statusCode, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ error: message }));
-}
-
 function GenerateRandomString(length) {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     return Array.from({ length }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join("");
-}
-
-function Logger(message) {
-    console.log(`[${new Date().toLocaleString()}] ${message}`);
 }
