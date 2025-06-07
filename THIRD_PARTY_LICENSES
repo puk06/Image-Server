@@ -1,0 +1,14 @@
+- Sharp
+  https://github.com/lovell/sharp
+  Licensed under the Apache-2.0 license
+  https://github.com/lovell/sharp/blob/main/LICENSE
+
+- Axios
+  https://github.com/axios/axios
+  Licensed under the MIT License  
+  https://github.com/axios/axios/blob/v1.x/LICENSE
+
+- dotenv
+  https://github.com/motdotla/dotenv
+  Licensed under the BSD-2-Clause license
+  https://github.com/motdotla/dotenv/blob/master/LICENSE
