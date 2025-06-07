@@ -16,5 +16,4 @@ class RequestUtils {
     }
 }
 
-
 module.exports = RequestUtils;
