@@ -4,13 +4,13 @@ class LogUtils {
     }
 
     log(message) {
-        const timestamp = new Date().toISOString();
+        const timestamp = new Date().toLocaleString();
         const logMessage = `[${timestamp}] ${message} from IP (${this.ip})`;
         console.log(logMessage);
     }
 
     static serverMessage(message) {
-        const timestamp = new Date().toISOString();
+        const timestamp = new Date().toLocaleString();
         const logMessage = `[${timestamp}] SERVER: ${message}`;
         console.log(logMessage);
     }
