@@ -1,7 +1,6 @@
 class RequestUtils {
     static sendImage(res, buffer) {
-        const headers = { "Content-Type": "image/jpeg" };
-        res.writeHead(200, headers);
+        res.writeHead(200, { "Content-Type": "image/jpeg" });
         res.end(buffer);
     }
 
