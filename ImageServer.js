@@ -15,12 +15,12 @@ const AUTO_DELETE = process.env.AUTO_DELETE === "true";
 const AUTO_DELETE_DURATION = process.env.AUTO_DELETE_DURATION ? parseInt(process.env.AUTO_DELETE_DURATION) : 8; // days
 
 // Config File Console
-console.log(`API_KEY: ${API_KEY}`);
-console.log(`SERVER_PORT: ${SERVER_PORT}`);
-console.log(`CACHE_DURATION: ${cacheDuration / (60 * 1000)} minutes`);
-console.log(`IMAGE_PATH: ${IMAGE_PATH}`);
-console.log(`AUTO_DELETE: ${AUTO_DELETE}`);
-console.log(`AUTO_DELETE_DURATION: ${AUTO_DELETE_DURATION} days`);
+LogUtils.serverMessage(`API_KEY: ${API_KEY}`);
+LogUtils.serverMessage(`SERVER_PORT: ${SERVER_PORT}`);
+LogUtils.serverMessage(`CACHE_DURATION: ${cacheDuration / (60 * 1000)} minutes`);
+LogUtils.serverMessage(`IMAGE_PATH: ${IMAGE_PATH}`);
+LogUtils.serverMessage(`AUTO_DELETE: ${AUTO_DELETE}`);
+LogUtils.serverMessage(`AUTO_DELETE_DURATION: ${AUTO_DELETE_DURATION} days`);
 // End of Config File Console
 
 const imageCache = [];
