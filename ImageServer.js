@@ -8,13 +8,22 @@ const RequestUtils = require("./Utils/RequestUtils");
 const LogUtils = require("./Utils/LogUtils");
 
 const API_KEY = process.env.API_KEY;
-const imageCache = [];
-const cacheDuration = 10 * 60 * 1000; // 10 minutes
-const IMAGE_PATH = path.join(__dirname, "uploads");
-const SERVER_PORT = 8000;
+const SERVER_PORT = parseInt(process.env.SERVER_PORT) || 8000;
+const cacheDuration = process.env.CACHE_DURATION ? parseInt(process.env.CACHE_DURATION) * 60 * 1000 : 10 * 60 * 1000; // Default to 10 minutes
+const IMAGE_PATH = path.join(__dirname, process.env.UPLOAD_DIR_NAME || "uploads");
+const AUTO_DELETE = process.env.AUTO_DELETE === "true";
+const AUTO_DELETE_DURATION = process.env.AUTO_DELETE_DURATION ? parseInt(process.env.AUTO_DELETE_DURATION) : 8; // days
 
-const AUTO_DELETE = false;
-const AUTO_DELETE_DURATION = 8; // days
+// Config File Console
+console.log(`API_KEY: ${API_KEY}`);
+console.log(`SERVER_PORT: ${SERVER_PORT}`);
+console.log(`CACHE_DURATION: ${cacheDuration / (60 * 1000)} minutes`);
+console.log(`IMAGE_PATH: ${IMAGE_PATH}`);
+console.log(`AUTO_DELETE: ${AUTO_DELETE}`);
+console.log(`AUTO_DELETE_DURATION: ${AUTO_DELETE_DURATION} days`);
+// End of Config File Console
+
+const imageCache = [];
 
 if (!fs.existsSync(IMAGE_PATH)) {
     fs.mkdirSync(IMAGE_PATH, { recursive: true });
