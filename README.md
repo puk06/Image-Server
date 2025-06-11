@@ -4,7 +4,8 @@
 # 初回起動手順(Linuxでの手順)
 1. インストールしたいフォルダに移動する
 2. `sh -c "$(curl -fsSL https://raw.githubusercontent.com/puk06/Image-Server/refs/heads/main/Install.sh)"`
-3. インストールが終わり、起動するまで待つ
+3. 設定したいAPIキーを入力する
+4. インストールが終わり、起動するまで待つ
 
 Git、Node.js(stable)、pm2がダウンロードされ、pm2を使ってサーバーが自動で起動されます。
 
