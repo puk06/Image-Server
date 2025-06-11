@@ -160,6 +160,16 @@ function handleGetImage(req, res, logger) {
 
 require("http").createServer(async (req, res) => {
     try {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+        
+        if (req.method === 'OPTIONS') {
+            res.writeHead(204);
+            res.end();
+            return;
+        }
+    
         const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown";
         const Logger = new LogUtils(ip);
 
