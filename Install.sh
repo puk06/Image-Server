@@ -44,6 +44,14 @@ read -p "Enter the upload directory name (default is 'uploads'): " UPLOAD_DIR_NA
 UPLOAD_DIR_NAME=${UPLOAD_DIR_NAME:-uploads}
 echo "UPLOAD_DIR_NAME = $UPLOAD_DIR_NAME" >> .env
 
+read -p "Enable request limit? (true/false, default is true): " LIMIT_REQUEST
+LIMIT_REQUEST=${LIMIT_REQUEST:-true}
+echo "LIMIT_REQUEST = $LIMIT_REQUEST" >> .env
+
+read -p "Enter the request limit per minute (default is 60): " REQUEST_LIMIT_PER_MINUTE
+REQUEST_LIMIT_PER_MINUTE=${REQUEST_LIMIT_PER_MINUTE:-60}
+echo "REQUEST_LIMIT_PER_MINUTE = $REQUEST_LIMIT_PER_MINUTE" >> .env
+
 # .envファイルの内容を確認
 echo "Configuration saved to .env file:"
 cat .env
