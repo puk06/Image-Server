@@ -1,26 +1,42 @@
 #!/bin/bash
 
-# gitをダウンロード
-sudo apt-get update
-sudo apt-get install -y git
+# Gitがインストールされていない場合のみインストール
+if ! command -v git &> /dev/null; then
+    echo "Installing Git..."
+    sudo apt-get update
+    sudo apt-get install -y git
+else
+    echo "Git is already installed."
+fi
 
-# Node.js(Stable)、npmをダウンロード
-sudo apt install -y nodejs npm
-sudo npm install n -g
-sudo n stable
-sudo apt purge -y nodejs npm
-sudo apt autoremove -y
+# Node.jsとnpmがインストールされていない場合のみインストール
+if ! command -v node &> /dev/null || ! command -v npm &> /dev/null; then
+    echo "Installing Node.js and npm..."
+    sudo apt install -y nodejs npm
+    sudo npm install -g n
+    sudo n stable
+    sudo apt purge -y nodejs npm
+    sudo apt autoremove -y
+else
+    echo "Node.js and npm are already installed."
+fi
 
-# pm2をグローバルにインストール
-sudo npm install -g pm2
+# pm2がインストールされていない場合のみインストール
+if ! command -v pm2 &> /dev/null; then
+    echo "Installing pm2..."
+    sudo npm install -g pm2
+else
+    echo "pm2 is already installed."
+fi
 
-# https://github.com/puk06/Image-Server.gitをクローン
-git clone https://github.com/puk06/Image-Server.git
+# リポジトリのクローン
+if [ ! -d "Image-Server" ]; then
+    git clone https://github.com/puk06/Image-Server.git
+fi
 
-# クローンしたディレクトリに移動
-cd Image-Server
+cd Image-Server || exit 1
 
-# .envに書き込む用のデータを入力させる
+# .env作成
 read -p "Enter your API key: " API_KEY
 echo "API_KEY = $API_KEY" > .env
 
@@ -30,7 +46,7 @@ echo "SERVER_PORT = $SERVER_PORT" >> .env
 
 read -p "Enter the cache duration in minutes (default is 10): " CACHE_DURATION
 CACHE_DURATION=${CACHE_DURATION:-10}
-echo "CACHE_DURATION =$CACHE_DURATION" >> .env
+echo "CACHE_DURATION = $CACHE_DURATION" >> .env
 
 read -p "Enable auto delete? (true/false, default is false): " AUTO_DELETE
 AUTO_DELETE=${AUTO_DELETE:-false}
@@ -52,15 +68,14 @@ read -p "Enter the request limit per minute (default is 60): " REQUEST_LIMIT_PER
 REQUEST_LIMIT_PER_MINUTE=${REQUEST_LIMIT_PER_MINUTE:-60}
 echo "REQUEST_LIMIT_PER_MINUTE = $REQUEST_LIMIT_PER_MINUTE" >> .env
 
-# .envファイルの内容を確認
+# .env内容表示
 echo "Configuration saved to .env file:"
 cat .env
 
-# npm installを実行
+# 依存関係インストール
 npm install
 
-# pm2を使ってアプリケーションを起動
+# サーバー起動
 pm2 start ImageServer.js --name "Image-API-Server"
 
-# 完了
 echo "Image API Server has been set up and started successfully."
