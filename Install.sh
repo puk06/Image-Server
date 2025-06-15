@@ -1,42 +1,54 @@
 #!/bin/bash
 
-# Gitがインストールされていない場合のみインストール
-if ! command -v git &> /dev/null; then
-    echo "Installing Git..."
-    sudo apt-get update
-    sudo apt-get install -y git
+set -e  # エラーが出たらスクリプト終了
+
+# ---- Git チェックとインストール ----
+GIT_PATH=$(command -v git)
+if [ -z "$GIT_PATH" ]; then
+    echo "Git not found. Installing Git..."
+    sudo apt update
+    sudo apt install -y git
 else
-    echo "Git is already installed."
+    echo "✅ Git is already installed at: $GIT_PATH"
 fi
 
-# Node.jsとnpmがインストールされていない場合のみインストール
-if ! command -v node &> /dev/null || ! command -v npm &> /dev/null; then
-    echo "Installing Node.js and npm..."
+# ---- Node.js & npm チェックとインストール ----
+NODE_PATH=$(command -v node)
+NPM_PATH=$(command -v npm)
+if [ -z "$NODE_PATH" ] || [ -z "$NPM_PATH" ]; then
+    echo "Node.js or npm not found. Installing..."
     sudo apt install -y nodejs npm
     sudo npm install -g n
     sudo n stable
     sudo apt purge -y nodejs npm
     sudo apt autoremove -y
+    echo "✅ Node.js has been updated to stable version."
 else
-    echo "Node.js and npm are already installed."
+    echo "✅ Node.js is already installed at: $NODE_PATH"
+    echo "✅ npm is already installed at: $NPM_PATH"
 fi
 
-# pm2がインストールされていない場合のみインストール
-if ! command -v pm2 &> /dev/null; then
-    echo "Installing pm2..."
+# ---- pm2 チェックとインストール ----
+PM2_PATH=$(command -v pm2)
+if [ -z "$PM2_PATH" ]; then
+    echo "PM2 not found. Installing PM2..."
     sudo npm install -g pm2
 else
-    echo "pm2 is already installed."
+    echo "✅ PM2 is already installed at: $PM2_PATH"
 fi
 
-# リポジトリのクローン
+# ---- リポジトリのクローン ----
 if [ ! -d "Image-Server" ]; then
     git clone https://github.com/puk06/Image-Server.git
+else
+    echo "📁 'Image-Server' directory already exists. Skipping clone."
 fi
 
-cd Image-Server || exit 1
+cd Image-Server
 
-# .env作成
+# ---- .env ファイルの生成 ----
+echo "🛠 Setting up .env configuration..."
+
 read -p "Enter your API key: " API_KEY
 echo "API_KEY = $API_KEY" > .env
 
@@ -68,14 +80,14 @@ read -p "Enter the request limit per minute (default is 60): " REQUEST_LIMIT_PER
 REQUEST_LIMIT_PER_MINUTE=${REQUEST_LIMIT_PER_MINUTE:-60}
 echo "REQUEST_LIMIT_PER_MINUTE = $REQUEST_LIMIT_PER_MINUTE" >> .env
 
-# .env内容表示
-echo "Configuration saved to .env file:"
+echo "✅ .env file created:"
 cat .env
 
-# 依存関係インストール
+# ---- パッケージインストールとサーバー起動 ----
+echo "📦 Installing npm packages..."
 npm install
 
-# サーバー起動
+echo "🚀 Starting server with PM2..."
 pm2 start ImageServer.js --name "Image-API-Server"
 
-echo "Image API Server has been set up and started successfully."
+echo "✅ Image API Server has been set up and started successfully."
