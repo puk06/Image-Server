@@ -15,7 +15,14 @@ const AUTO_DELETE = process.env.AUTO_DELETE === "true";
 const AUTO_DELETE_DURATION = process.env.AUTO_DELETE_DURATION ? parseInt(process.env.AUTO_DELETE_DURATION) : 8; // days
 const LIMIT_REQUEST = process.env.LIMIT_REQUEST === "true";
 const REQUEST_LIMIT_PER_MINUTE = parseInt(process.env.REQUEST_LIMIT_PER_MINUTE) || 60; // Default to 60 requests per minute
-const BYPASS_IP = fs.readFileSync(path.join(__dirname, "bypass_ips.txt"), "utf-8").split("\n").map(ip => ip.trim());
+let BYPASS_IP = [];
+
+const IP_FILE_PATH = path.join(__dirname, "bypass_ips.txt");
+if (!fs.existsSync(IP_FILE_PATH)) {
+    fs.writeFileSync(IP_FILE_PATH, "", "utf-8");
+} else {
+    BYPASS_IP = fs.readFileSync(IP_FILE_PATH, "utf-8").split("\n").map(ip => ip.trim());
+}
 
 // Config File Console
 LogUtils.serverMessage(`API_KEY: ${API_KEY}`);
