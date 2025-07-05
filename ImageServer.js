@@ -220,7 +220,7 @@ require("http").createServer(async (req, res) => {
         switch (endpoint) {
             case "/resize":
             case "/resize/":
-                await handleImageRequest(res, req.url, Logger);
+                handleImageRequest(res, req.url, Logger);
                 break;
 
             case "/upload":
