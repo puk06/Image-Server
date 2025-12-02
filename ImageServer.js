@@ -16,7 +16,7 @@ const AUTO_DELETE = process.env.AUTO_DELETE === "true";
 const AUTO_DELETE_DURATION = process.env.AUTO_DELETE_DURATION ? Number.parseInt(process.env.AUTO_DELETE_DURATION) : 8; // days
 const LIMIT_REQUEST = process.env.LIMIT_REQUEST === "true";
 const REQUEST_LIMIT_PER_MINUTE = Number.parseInt(process.env.REQUEST_LIMIT_PER_MINUTE) || 60; // Default to 60 requests per minute
-const bypass_ips = new Set(fs.readFileSync(path.join(__dirname, "bypass_ips.txt"), "utf-8").split("\n").map(ip => ip.trim()));
+const bypass_ips = fs.existsSync(path.join(__dirname, "bypass_ips.txt")) ? new Set(fs.readFileSync(path.join(__dirname, "bypass_ips.txt"), "utf-8").split("\n").map(ip => ip.trim())) : new Set();
 const isAllowed = value => bypass_ips.has(value);
 
 // Config File Console
