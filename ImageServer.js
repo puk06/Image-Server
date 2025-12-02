@@ -11,7 +11,7 @@ const LogUtils = require("./Utils/LogUtils");
 const API_KEY = process.env.API_KEY;
 const SERVER_PORT = Number.parseInt(process.env.SERVER_PORT) || 3001;
 const cacheDuration = process.env.CACHE_DURATION ? Number.parseInt(process.env.CACHE_DURATION) * 60 * 1000 : 10 * 60 * 1000; // Default to 10 minutes
-const IMAGE_PATH = path.join(__dirname, process.env.UPLOAD_DIR_NAME || "uploads");
+const IMAGE_PATH = path.join(__dirname, ".data", process.env.UPLOAD_DIR_NAME || "uploads");
 const AUTO_DELETE = process.env.AUTO_DELETE === "true";
 const AUTO_DELETE_DURATION = process.env.AUTO_DELETE_DURATION ? Number.parseInt(process.env.AUTO_DELETE_DURATION) : 8; // days
 const LIMIT_REQUEST = process.env.LIMIT_REQUEST === "true";
