@@ -1,18 +1,16 @@
 #!/bin/bash
 
-set -e  # エラーが出たらスクリプト終了
+set -e
 
-# ---- Git チェックとインストール ----
 GIT_PATH=$(command -v git)
 if [ -z "$GIT_PATH" ]; then
     echo "Git not found. Installing Git..."
     sudo apt update
     sudo apt install -y git
 else
-    echo "✅ Git is already installed at: $GIT_PATH"
+    echo "Git is already installed at: $GIT_PATH"
 fi
 
-# ---- Node.js & npm チェックとインストール ----
 NODE_PATH=$(command -v node)
 NPM_PATH=$(command -v npm)
 if [ -z "$NODE_PATH" ] || [ -z "$NPM_PATH" ]; then
@@ -22,13 +20,12 @@ if [ -z "$NODE_PATH" ] || [ -z "$NPM_PATH" ]; then
     sudo n stable
     sudo apt purge -y nodejs npm
     sudo apt autoremove -y
-    echo "✅ Node.js has been updated to stable version."
+    echo "Node.js has been updated to stable version."
 else
-    echo "✅ Node.js is already installed at: $NODE_PATH"
-    echo "✅ npm is already installed at: $NPM_PATH"
+    echo "Node.js is already installed at: $NODE_PATH"
+    echo "npm is already installed at: $NPM_PATH"
 fi
 
-# ---- pm2 チェックとインストール ----
 PM2_PATH=$(command -v pm2)
 if [ -z "$PM2_PATH" ]; then
     echo "PM2 not found. Installing PM2..."
@@ -37,16 +34,14 @@ else
     echo "✅ PM2 is already installed at: $PM2_PATH"
 fi
 
-# ---- リポジトリのクローン ----
 if [ ! -d "Image-Server" ]; then
     git clone https://github.com/puk06/Image-Server.git
 else
-    echo "📁 'Image-Server' directory already exists. Skipping clone."
+    echo "'Image-Server' directory already exists. Skipping clone."
 fi
 
 cd Image-Server
 
-# ---- .env ファイルの生成 ----
 echo "🛠 Setting up .env configuration..."
 
 read -p "Enter your API key: " API_KEY
@@ -80,14 +75,13 @@ read -p "Enter the request limit per minute (default is 60): " REQUEST_LIMIT_PER
 REQUEST_LIMIT_PER_MINUTE=${REQUEST_LIMIT_PER_MINUTE:-60}
 echo "REQUEST_LIMIT_PER_MINUTE = $REQUEST_LIMIT_PER_MINUTE" >> .env
 
-echo "✅ .env file created:"
+echo ".env file created:"
 cat .env
 
-# ---- パッケージインストールとサーバー起動 ----
-echo "📦 Installing npm packages..."
+echo "Installing npm packages..."
 npm install
 
-echo "🚀 Starting server with PM2..."
+echo "Starting server with PM2..."
 pm2 start ImageServer.js --name "Image-API-Server"
 
-echo "✅ Image API Server has been set up and started successfully."
+echo "Image API Server has been set up and started successfully."

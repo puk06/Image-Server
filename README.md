@@ -14,6 +14,11 @@ Git、Node.js(stable)、pm2がダウンロードされ、pm2を使ってサー�
 # 通常時の起動手順
 1. `pm2 start ImageServer.js`で起動するだけです。
 
+# アップデート手順
+1. インストールしているフォルダに移動する
+2. `sh -c "$(curl -fsSL https://raw.githubusercontent.com/puk06/Image-Server/refs/heads/main/Update.sh)"`
+3. アップデートが終わり、自動でPM2が再起動するまで待つ
+
 # ライセンス
 ライブラリのライセンスは[THIRD_PARTY_LICENSES](https://github.com/puk06/Image-Server/blob/main/THIRD_PARTY_LICENSES)を御覧ください
 

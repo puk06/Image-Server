@@ -6,8 +6,8 @@
   "author": "pukorufu",
   "dependencies": {
     "axios": "0.21.4",
-    "sharp": "^0.33.5",
-    "multiparty":"^4.2.3",
-    "dotenv": "^16.5.0"
+    "sharp": "^0.34.5",
+    "dotenv": "^17.2.3",
+    "lru-cache": "^11.2.4"
   }
 }

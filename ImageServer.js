@@ -1,28 +1,23 @@
 const axios = require("axios");
 const sharp = require("sharp");
-const fs = require("fs");
-const path = require("path");
+const { LRUCache } = require("lru-cache");
+const fs = require("node:fs");
+const path = require("node:path");
 require("dotenv").config();
 
 const RequestUtils = require("./Utils/RequestUtils");
 const LogUtils = require("./Utils/LogUtils");
 
 const API_KEY = process.env.API_KEY;
-const SERVER_PORT = parseInt(process.env.SERVER_PORT) || 8000;
-const cacheDuration = process.env.CACHE_DURATION ? parseInt(process.env.CACHE_DURATION) * 60 * 1000 : 10 * 60 * 1000; // Default to 10 minutes
+const SERVER_PORT = Number.parseInt(process.env.SERVER_PORT) || 3001;
+const cacheDuration = process.env.CACHE_DURATION ? Number.parseInt(process.env.CACHE_DURATION) * 60 * 1000 : 10 * 60 * 1000; // Default to 10 minutes
 const IMAGE_PATH = path.join(__dirname, process.env.UPLOAD_DIR_NAME || "uploads");
 const AUTO_DELETE = process.env.AUTO_DELETE === "true";
-const AUTO_DELETE_DURATION = process.env.AUTO_DELETE_DURATION ? parseInt(process.env.AUTO_DELETE_DURATION) : 8; // days
+const AUTO_DELETE_DURATION = process.env.AUTO_DELETE_DURATION ? Number.parseInt(process.env.AUTO_DELETE_DURATION) : 8; // days
 const LIMIT_REQUEST = process.env.LIMIT_REQUEST === "true";
-const REQUEST_LIMIT_PER_MINUTE = parseInt(process.env.REQUEST_LIMIT_PER_MINUTE) || 60; // Default to 60 requests per minute
-let BYPASS_IP = [];
-
-const IP_FILE_PATH = path.join(__dirname, "bypass_ips.txt");
-if (!fs.existsSync(IP_FILE_PATH)) {
-    fs.writeFileSync(IP_FILE_PATH, "", "utf-8");
-} else {
-    BYPASS_IP = fs.readFileSync(IP_FILE_PATH, "utf-8").split("\n").map(ip => ip.trim());
-}
+const REQUEST_LIMIT_PER_MINUTE = Number.parseInt(process.env.REQUEST_LIMIT_PER_MINUTE) || 60; // Default to 60 requests per minute
+const bypass_ips = new Set(fs.readFileSync(path.join(__dirname, "bypass_ips.txt"), "utf-8").split("\n").map(ip => ip.trim()));
+const isAllowed = value => bypass_ips.has(value);
 
 // Config File Console
 LogUtils.serverMessage(`API_KEY: ${API_KEY}`);
@@ -35,21 +30,28 @@ LogUtils.serverMessage(`LIMIT_REQUEST: ${LIMIT_REQUEST}`);
 LogUtils.serverMessage(`REQUEST_LIMIT_PER_MINUTE: ${REQUEST_LIMIT_PER_MINUTE}`);
 // End of Config File Console
 
-const imageCache = [];
+const imageCache = new LRUCache({
+    max: 200,
+    ttl: cacheDuration
+});
+
 const requestCounts = {};
 
 if (!fs.existsSync(IMAGE_PATH)) {
     fs.mkdirSync(IMAGE_PATH, { recursive: true });
 }
 
-setInterval(async () => {
-    const now = Date.now();
-    for (let i = imageCache.length - 1; i >= 0; i--) {
-        if (now - imageCache[i].timestamp > cacheDuration) {
-            imageCache.splice(i, 1);
-        }
+// 自動で再起動
+let lastDate = new Date().getDate();
+setInterval(() => {
+    const currentDate = new Date().getDate();
+    if (currentDate !== lastDate) {
+        lastDate = currentDate;
+        process.exit(0);
     }
+}, 60000);
 
+setInterval(async () => {
     await deleteOldImages();
 }, cacheDuration);
 
@@ -88,10 +90,10 @@ async function handleImageRequest(res, url, logger) {
 
     const imageUrl = decodeURIComponent(encodedUrl);
 
-    const cachedImage = imageCache.find(item => item.url === imageUrl);
+    const cachedImage = imageCache.get(imageUrl);
     if (cachedImage) {
         logger.log(`Serving cached image from ${imageUrl}`);
-        return RequestUtils.sendImage(res, cachedImage.buffer);
+        return RequestUtils.sendImage(res, cachedImage);
     }
 
     try {
@@ -101,7 +103,7 @@ async function handleImageRequest(res, url, logger) {
         const resized = await resizeImage(rawImage);
         if (!resized) throw new Error("Resize failed");
 
-        imageCache.push({ url: imageUrl, buffer: resized, timestamp: Date.now() });
+        imageCache.set(imageUrl, resized);
 
         logger.log(`Fetched and resized image from ${imageUrl}`);
         RequestUtils.sendImage(res, resized);
@@ -111,20 +113,8 @@ async function handleImageRequest(res, url, logger) {
     }
 }
 
-function UploadImage(req) {
-    return new Promise((resolve, reject) => {
-        const chunks = [];
-        req.on("data", chunk => chunks.push(chunk));
-        req.on("end", () => resolve(Buffer.concat(chunks)));
-        req.on("error", reject);
-    });
-}
-
 async function handleUploadImage(req, res, logger) {
     try {
-        const data = await UploadImage(req);
-        const resized = await resizeImage(data);
-
         let fileName = GenerateRandomString(10);
         while (fs.existsSync(path.join(IMAGE_PATH, `${fileName}.jpg`))) {
             fileName = GenerateRandomString(10);
@@ -132,14 +122,22 @@ async function handleUploadImage(req, res, logger) {
 
         const filePath = path.join(IMAGE_PATH, `${fileName}.jpg`);
 
-        fs.writeFile(filePath, resized, err => {
-            if (err) {
-                logger.log(`Error saving image: ${err.message}`);
-                return RequestUtils.sendError(res, 500, "Failed to save image");
-            }
+        const transformer = sharp()
+            .resize(2048, 2048, { fit: "inside", withoutEnlargement: true })
+            .jpeg();
 
+        const writeStream = fs.createWriteStream(filePath);
+
+        req.pipe(transformer).pipe(writeStream);
+
+        writeStream.on("finish", () => {
             logger.log(`Image uploaded and saved as ${fileName}.jpg`);
             RequestUtils.sendResponse(res, 200, { message: "Success", fileName });
+        });
+
+        writeStream.on("error", err => {
+            logger.log(`Error saving image: ${err.message}`);
+            RequestUtils.sendError(res, 500, "Failed to save image");
         });
     } catch (err) {
         logger.log(`Error during upload: ${err.message}`);
@@ -161,10 +159,10 @@ function handleGetImage(req, res, logger) {
         return RequestUtils.sendError(res, 404, "Image not found");
     }
 
-    const cached = imageCache.find(item => item.url === imageId);
+    const cached = imageCache.get(imageId);
     if (cached) {
         logger.log(`Serving cached image: ${imageId}`);
-        return RequestUtils.sendImage(res, cached.buffer);
+        return RequestUtils.sendImage(res, cached);
     }
 
     fs.readFile(filePath, (err, data) => {
@@ -175,12 +173,12 @@ function handleGetImage(req, res, logger) {
             logger.log(`Serving image from disk: ${imageId}`);
             RequestUtils.sendImage(res, data);
 
-            imageCache.push({ url: imageId, buffer: data, timestamp: Date.now() });
+            imageCache.set(imageId, data);
         }
     });
 }
 
-require("http").createServer(async (req, res) => {
+require("node:http").createServer(async (req, res) => {
     try {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -198,7 +196,7 @@ require("http").createServer(async (req, res) => {
         // Rate limiting
         const currentTime = Date.now();
 
-        if (LIMIT_REQUEST && !BYPASS_IP.includes(ip)) {
+        if (LIMIT_REQUEST && !isAllowed(ip)) {
 
             if (!requestCounts[ip]) {
                 requestCounts[ip] = [];
@@ -247,23 +245,17 @@ require("http").createServer(async (req, res) => {
                 break;
             
             default:
-                Logger.log(`Endpoint not found: ${req.url}`);
-                RequestUtils.sendError(res, 404, "Endpoint not found");
+                res.writeHead(302, { Location: "https://pukosrv.net/home" });
+                res.end();
                 break;
         }
     } catch (err) {
-        logger.log(`Error handling request: ${err.message}`);
+        console.log(`Error handling request: ${err.message}`);
         RequestUtils.sendError(res, 500, "Internal server error");
     }
 }).listen(SERVER_PORT, async () => {
     LogUtils.serverMessage(`Server is running on port ${SERVER_PORT}`);
 });
-
-function resizeImage(imageData) {
-    return sharp(imageData)
-        .resize(2048, 2048, { fit: "inside", withoutEnlargement: true })
-        .toBuffer();
-}
 
 function GenerateRandomString(length) {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
