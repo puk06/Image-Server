@@ -261,3 +261,9 @@ function GenerateRandomString(length) {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     return Array.from({ length }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join("");
 }
+
+function resizeImage(imageData) {
+    return sharp(imageData)
+        .resize(2048, 2048, { fit: "inside", withoutEnlargement: true })
+        .toBuffer();
+}
