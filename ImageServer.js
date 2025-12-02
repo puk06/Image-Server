@@ -179,6 +179,9 @@ function handleGetImage(req, res, logger) {
 }
 
 require("node:http").createServer(async (req, res) => {
+    const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown";
+    const Logger = new LogUtils(ip);
+
     try {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -189,9 +192,6 @@ require("node:http").createServer(async (req, res) => {
             res.end();
             return;
         }
-    
-        const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown";
-        const Logger = new LogUtils(ip);
 
         // Rate limiting
         const currentTime = Date.now();
@@ -250,7 +250,7 @@ require("node:http").createServer(async (req, res) => {
                 break;
         }
     } catch (err) {
-        console.log(`Error handling request: ${err.message}`);
+        Logger.log(`Error handling request: ${err.message}`);
         RequestUtils.sendError(res, 500, "Internal server error");
     }
 }).listen(SERVER_PORT, async () => {
